@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PR Security Reviewer — Policy Explorer</title>
+  <style>
+    body { max-width: 880px; margin: 3rem auto; padding: 0 1rem; font: 16px/1.5 system-ui, sans-serif; color: #182230; }
+    .flow, .controls { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; }
+    .step, .card { border: 1px solid #ccd6e0; border-radius: .6rem; padding: .8rem; background: #f7fafc; }
+    .step { font-weight: 600; } .arrow { color: #637083; } .card { margin-top: 1.5rem; }
+    label { display: grid; gap: .3rem; } select { padding: .45rem; font: inherit; }
+    #decision { font-weight: 700; } .block { color: #b42318; } .advisory { color: #067647; }
+    code { background: #eef2f6; padding: .1rem .25rem; border-radius: .2rem; }
+  </style>
+</head>
+<body>
+  <h1>PR Security Reviewer</h1>
+  <p>An evidence-first GitHub Action: it treats model output as a hypothesis, corroborates it with Semgrep, and blocks only confirmed high-severity risk.</p>
+  <div class="flow" aria-label="Review pipeline">
+    <span class="step">Diff extractor</span><span class="arrow">→</span><span class="step">GPT-5.6 Terra</span><span class="arrow">+</span><span class="step">Semgrep</span><span class="arrow">→</span><span class="step">Reconciler</span><span class="arrow">→</span><span class="step">PR comments + gate</span>
+  </div>
+  <section class="card">
+    <h2>Gate policy explorer</h2>
+    <p>Try a finding classification. This mirrors the Python gate: only a <em>confirmed</em> high or critical finding blocks a merge.</p>
+    <div class="controls">
+      <label>Confidence
+        <select id="confidence"><option>confirmed</option><option>model-only</option><option>sast-only</option></select>
+      </label>
+      <label>Severity
+        <select id="severity"><option>critical</option><option>high</option><option>medium</option><option>low</option></select>
+      </label>
+    </div>
+    <p id="decision" class="block" role="status"></p>
+  </section>
+  <section class="card">
+    <h2>Run the real reviewer</h2>
+    <p>Configure <code>OPENAI_API_KEY</code> and <code>GITHUB_TOKEN</code>, then open a pull request. The Action posts inline comments with CWE/OWASP citations; the full setup is in <a href="README.md">README.md</a>.</p>
+  </section>
+  <script>
+    const confidence = document.querySelector('#confidence');
+    const severity = document.querySelector('#severity');
+    const decision = document.querySelector('#decision');
+    function update() {
+      const blocks = confidence.value === 'confirmed' && ['critical', 'high'].includes(severity.value);
+      decision.textContent = blocks ? 'Merge blocked — corroborated high-severity finding.' : 'Advisory only — a human remains the final decision-maker.';
+      decision.className = blocks ? 'block' : 'advisory';
+    }
+    confidence.addEventListener('change', update); severity.addEventListener('change', update); update();
+  </script>
+</body>
+</html>
