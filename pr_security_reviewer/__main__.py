@@ -8,7 +8,7 @@ import subprocess
 import sys
 from typing import Callable
 
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 
 from pr_security_reviewer.config import load_local_env
 from pr_security_reviewer.diff_extractor import ChangedFile, filter_reviewable_files, get_git_diff, parse_unified_diff
@@ -64,7 +64,7 @@ def main() -> int:
             github_api=GitHubApi(token),
             model=args.model,
         )
-    except (KeyError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
+    except (KeyError, OpenAIError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
         print(f"PR security review failed: {error}", file=sys.stderr)
         return 2
     return decision.exit_code
