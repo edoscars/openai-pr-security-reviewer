@@ -1,6 +1,6 @@
 # PR Security Reviewer
 
-An evidence-first security-review agent for GitHub pull requests. It sends only bounded Python diffs to GPT-5.6 Terra, independently scans the same changed files with Semgrep, posts CWE/OWASP-cited comments, and blocks a merge only for corroborated high- or critical-severity findings.
+An evidence-first security-review agent for GitHub pull requests. It sends only bounded Python diffs to an OpenAI reasoning model (default: GPT-5.5; GPT-5.6 Terra when provisioned), independently scans the same changed files with Semgrep, posts CWE/OWASP-cited comments, and blocks a merge only for corroborated high- or critical-severity findings.
 
 Open [demo.html](demo.html) in a browser to explore the confidence and gate policy without credentials.
 
@@ -48,7 +48,7 @@ GitHub pull_request
 
 ## Setup
 
-Requirements: Python 3.11+, Git, an OpenAI API key with access to `gpt-5.6-terra`, and Semgrep.
+Requirements: Python 3.11+, Git, an OpenAI API key, and Semgrep. The default is `gpt-5.5`; set `OPENAI_MODEL=gpt-5.6-terra` after your API organization receives preview access.
 
 ```powershell
 python -m venv .venv
@@ -62,7 +62,7 @@ Set the two values in `.env` locally. Do not commit it:
 ```dotenv
 OPENAI_API_KEY=...
 GITHUB_TOKEN=...
-OPENAI_MODEL=gpt-5.6-terra
+OPENAI_MODEL=gpt-5.5
 ```
 
 For a local PR-equivalent run, use SHAs from the checked-out repository:
@@ -77,7 +77,7 @@ The command returns `0` for advisory output, `1` for the narrow blocking conditi
 
 ## GitHub Actions deployment
 
-The checked-in [workflow](.github/workflows/pr-security-review.yml) runs on opened, reopened, and updated same-repository PRs. Add `OPENAI_API_KEY` to repository Actions secrets; GitHub provides `github.token` as `GITHUB_TOKEN` automatically.
+The checked-in [workflow](.github/workflows/pr-security-review.yml) runs on opened, reopened, and updated same-repository PRs. Add `OPENAI_API_KEY` to repository Actions secrets; GitHub provides `github.token` as `GITHUB_TOKEN` automatically. Optionally create a repository Actions variable named `OPENAI_MODEL` to override the default `gpt-5.5` with `gpt-5.6-terra` when available.
 
 To make the gate effective, configure your protected branch to require the **PR Security Review** check. The workflow fetches the complete history so `git diff base...head` is reliable, and it pins the two third-party GitHub Actions by commit SHA.
 

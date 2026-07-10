@@ -13,7 +13,7 @@ from openai import APIConnectionError, APITimeoutError, InternalServerError, Rat
 from pr_security_reviewer.diff_extractor import ChangedFile
 
 
-DEFAULT_MODEL = "gpt-5.6-terra"
+DEFAULT_MODEL = "gpt-5.5"
 DEFAULT_MAX_ATTEMPTS = 3
 _CWE_ID = re.compile(r"^CWE-\d+$")
 _SEVERITIES = {"critical", "high", "medium", "low"}
