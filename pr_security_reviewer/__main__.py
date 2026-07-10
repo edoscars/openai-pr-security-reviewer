@@ -10,6 +10,7 @@ from typing import Callable
 
 from openai import OpenAI
 
+from pr_security_reviewer.config import load_local_env
 from pr_security_reviewer.diff_extractor import ChangedFile, filter_reviewable_files, get_git_diff, parse_unified_diff
 from pr_security_reviewer.gate import GateDecision, decide_gate
 from pr_security_reviewer.grounding import ground
@@ -42,6 +43,7 @@ def run_pipeline(
 
 
 def main() -> int:
+    load_local_env()
     parser = argparse.ArgumentParser(description="Review a pull-request diff for security findings.")
     parser.add_argument("--base-sha", required=True)
     parser.add_argument("--head-sha", required=True)
