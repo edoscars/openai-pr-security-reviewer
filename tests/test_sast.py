@@ -65,6 +65,18 @@ def test_excludes_findings_not_on_added_lines_or_without_cwe() -> None:
     assert findings == []
 
 
+def test_prefers_semgrep_explicit_severity_over_rule_metadata_impact() -> None:
+    output = {"results": [semgrep_result(severity="ERROR")]}
+    output["results"][0]["extra"]["metadata"]["impact"] = "LOW"
+
+    findings = run_semgrep(
+        parse_unified_diff(PATCH),
+        runner=lambda *_, **__: SimpleNamespace(returncode=0, stdout=json.dumps(output), stderr=""),
+    )
+
+    assert findings[0].severity == "high"
+
+
 def test_does_not_start_semgrep_when_there_are_no_files() -> None:
     assert run_semgrep([], runner=lambda **_: pytest.fail("runner should not be called")) == []
 
