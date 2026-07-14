@@ -8,6 +8,9 @@ def test_readme_documents_the_deployment_and_safety_contract() -> None:
         assert heading in readme
     assert "pull_request_target" in readme
     assert "never applies fixes" in readme
+    assert "store=False" in readme
+    assert "Idempotent comments" in readme
+    assert "Live validation" in readme
 
 
 def test_demo_exposes_the_real_confidence_gate_policy() -> None:
