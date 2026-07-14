@@ -7,6 +7,7 @@ from pr_security_reviewer.config import load_local_env
 def test_loads_simple_local_values_without_overriding_existing_environment(tmp_path: Path, monkeypatch) -> None:
     dotenv = tmp_path / ".env"
     dotenv.write_text("# local only\nOPENAI_API_KEY=local-key\nGITHUB_TOKEN='local-token'\nINVALID-KEY=no\n")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setenv("GITHUB_TOKEN", "ci-token")
 
     load_local_env(dotenv)
