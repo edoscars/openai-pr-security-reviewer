@@ -1,6 +1,6 @@
 # PR Security Reviewer
 
-An evidence-first security-review agent for GitHub pull requests. It sends only bounded Python diffs to GPT-5.6 Terra, independently scans the same changed files with Semgrep, posts CWE/OWASP-cited comments, and blocks a merge only for corroborated high- or critical-severity findings.
+An evidence-first security-review agent for GitHub pull requests. It sends only bounded Python diffs to an OpenAI reasoning model (default: GPT-5.5; GPT-5.6 Terra when provisioned), independently scans the same changed files with Semgrep, posts CWE/OWASP-cited comments, and blocks a merge only for corroborated high- or critical-severity findings.
 
 Open [demo.html](demo.html) in a browser to explore the confidence and gate policy without credentials.
 
@@ -41,14 +41,20 @@ GitHub pull_request
 ## Security boundaries
 
 - The workflow uses `pull_request`, never `pull_request_target`, and skips forked PRs because their untrusted context cannot safely receive write credentials or API secrets.
-- GitHub permissions are scoped to `contents: read`, `pull-requests: write`, and `issues: write`—enough to read the repository and publish this tool’s comments.
+- The only code sent to the OpenAI API is a filtered unified diff for one Python file at a time; no whole repository is sent. Requests set `store=False`. Semgrep analyzes the checked-out changed files on the GitHub runner and receives no model output.
+- A multi-file PR is processed as one model request per file, avoiding whole-PR truncation. Individual patches over the explicit 100 KB boundary are excluded rather than silently truncated.
+- GitHub permissions are deliberately narrow: `contents: read` checks out the diff, `pull-requests: write` creates/deletes inline review comments, and `issues: write` creates/deletes the summary comment. The workflow does not call the Checks API; its process exit code creates the required Action check, so `checks: write` is unnecessary.
 - The OpenAI request is limited to one filtered file patch at a time, uses `store=False`, strict Structured Outputs, a token cap, timeout, and bounded retries.
 - The reviewer never applies fixes or commits code. Its only effects are PR comments and an Action exit status.
 - `.env` is ignored. The local loader never overrides values already supplied by CI.
 
+### Idempotent comments
+
+Every bot comment includes a hidden `pr-security-reviewer` marker. Before each run, the reporter lists prior review and issue comments, deletes only comments bearing that marker, then publishes fresh inline findings and one summary. Human comments and other bots are never touched.
+
 ## Setup
 
-Requirements: Python 3.11+, Git, an OpenAI API key with access to `gpt-5.6-terra`, and Semgrep.
+Requirements: Python 3.11+, Git, an OpenAI API key, and Semgrep. The default is `gpt-5.5`; set `OPENAI_MODEL=gpt-5.6-terra` after your API organization receives preview access.
 
 ```powershell
 python -m venv .venv
@@ -62,7 +68,7 @@ Set the two values in `.env` locally. Do not commit it:
 ```dotenv
 OPENAI_API_KEY=...
 GITHUB_TOKEN=...
-OPENAI_MODEL=gpt-5.6-terra
+OPENAI_MODEL=gpt-5.5
 ```
 
 For a local PR-equivalent run, use SHAs from the checked-out repository:
@@ -77,9 +83,9 @@ The command returns `0` for advisory output, `1` for the narrow blocking conditi
 
 ## GitHub Actions deployment
 
-The checked-in [workflow](.github/workflows/pr-security-review.yml) runs on opened, reopened, and updated same-repository PRs. Add `OPENAI_API_KEY` to repository Actions secrets; GitHub provides `github.token` as `GITHUB_TOKEN` automatically.
+The checked-in [workflow](.github/workflows/pr-security-review.yml) runs on opened, reopened, and updated same-repository PRs. Add `OPENAI_API_KEY` to repository Actions secrets; GitHub provides `github.token` as `GITHUB_TOKEN` automatically. Optionally create a repository Actions variable named `OPENAI_MODEL` to override the default `gpt-5.5` with `gpt-5.6-terra` when available.
 
-To make the gate effective, configure your protected branch to require the **PR Security Review** check. The workflow fetches the complete history so `git diff base...head` is reliable, and it pins the two third-party GitHub Actions by commit SHA.
+To make the gate effective, protect `main` and require the workflow's **review** check. The workflow fetches the complete history so `git diff base...head` is reliable, and it pins the two third-party GitHub Actions by commit SHA.
 
 ## Testing and evaluation
 
@@ -91,7 +97,11 @@ python -m pytest
 
 The tests are part of the product contract, not an afterthought. They cover hunk line mapping, filtering and command safety, strict model schema boundaries, retry behavior, Semgrep normalization, reconciliation, CWE grounding, comment idempotency, the gate-policy matrix, complete pipeline composition, local-secret precedence, and the workflow’s credential boundaries.
 
-For a portfolio evaluation, create a small PR corpus with intentionally vulnerable and safe Python changes. Record precision, recall, reviewer acceptance rate, API latency/cost, and how often each confidence category occurs. This turns the project from a demo into evidence of deployment judgment.
+### Live validation
+
+The end-to-end demonstration PR deliberately added an unsafe `subprocess.run(..., shell=True)` call and SQL string interpolation. The deployed Action posted one **confirmed high CWE-78** command-injection comment, one **model-only high CWE-89** SQL-injection hypothesis, a grounded summary, and failed the `review` check as policy requires. A clean follow-up PR completed successfully. This proves the integration path and gate behavior; it is not a benchmark, so precision/recall are not claimed from this two-case demo.
+
+For a portfolio evaluation, extend this into a small PR corpus with intentionally vulnerable and safe Python changes. Record precision, recall, reviewer acceptance rate, API latency/cost, and how often each confidence category occurs. This turns the project from a demo into evidence of deployment judgment.
 
 ## Scope
 

@@ -23,12 +23,21 @@ class ChangedLine:
 
 
 @dataclass(frozen=True)
+class DiffHunk:
+    """One unified-diff hunk and its added lines in the new file."""
+
+    new_start: int
+    added_lines: tuple[ChangedLine, ...]
+
+
+@dataclass(frozen=True)
 class ChangedFile:
-    """One file patch and the added lines that can receive inline comments."""
+    """One file patch, its structured hunks, and inline-commentable lines."""
 
     path: str
     patch: str
     added_lines: tuple[ChangedLine, ...]
+    hunks: tuple[DiffHunk, ...]
 
 
 def get_git_diff(base_sha: str, head_sha: str) -> str:
@@ -51,7 +60,9 @@ def parse_unified_diff(diff: str) -> list[ChangedFile]:
             continue
         path = _new_path(section)
         if path is not None:
-            files.append(ChangedFile(path, section, tuple(_added_lines(section))))
+            hunks = tuple(_parse_hunks(section))
+            added_lines = tuple(line for hunk in hunks for line in hunk.added_lines)
+            files.append(ChangedFile(path, section, added_lines, hunks))
     return files
 
 
@@ -88,13 +99,18 @@ def _new_path(section: str) -> str | None:
     return None
 
 
-def _added_lines(section: str) -> list[ChangedLine]:
-    added: list[ChangedLine] = []
+def _parse_hunks(section: str) -> list[DiffHunk]:
+    hunks: list[DiffHunk] = []
     new_line: int | None = None
+    added: list[ChangedLine] = []
     for line in section.splitlines():
         match = _HUNK_HEADER.match(line)
         if match:
+            if new_line is not None:
+                hunks.append(DiffHunk(hunk_start, tuple(added)))
+            hunk_start = int(match.group(1))
             new_line = int(match.group(1))
+            added = []
             continue
         if new_line is None:
             continue
@@ -105,4 +121,6 @@ def _added_lines(section: str) -> list[ChangedLine]:
             continue
         elif line.startswith(" "):
             new_line += 1
-    return added
+    if new_line is not None:
+        hunks.append(DiffHunk(hunk_start, tuple(added)))
+    return hunks
