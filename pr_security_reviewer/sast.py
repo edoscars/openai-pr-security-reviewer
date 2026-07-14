@@ -87,7 +87,7 @@ def _normalize(result: object, added_lines: dict[str, set[int]]) -> SastFinding 
     message = extra.get("message")
     if cwe is None or not isinstance(message, str) or not message.strip():
         return None
-    severity = _severity(metadata.get("impact") or extra.get("severity"))
+    severity = _severity(extra.get("severity") or metadata.get("impact"))
     return SastFinding(path, line, cwe, message, severity, message)
 
 
