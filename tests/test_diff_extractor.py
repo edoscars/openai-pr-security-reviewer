@@ -40,6 +40,29 @@ def test_parses_added_lines_with_new_file_line_numbers() -> None:
         (12, "    audit_login(username)"),
         (13, "    return execute(query)"),
     ]
+    assert [(hunk.new_start, [line.number for line in hunk.added_lines]) for hunk in login.hunks] == [
+        (10, [11, 12, 13])
+    ]
+
+
+def test_retains_multiple_hunks_as_independent_structures() -> None:
+    patch = """diff --git a/src/example.py b/src/example.py
+--- a/src/example.py
++++ b/src/example.py
+@@ -1 +1 @@
+-first
++changed_first
+@@ -20 +20 @@
+-second
++changed_second
+"""
+
+    hunks = parse_unified_diff(patch)[0].hunks
+
+    assert [(hunk.new_start, [line.text for line in hunk.added_lines]) for hunk in hunks] == [
+        (1, ["changed_first"]),
+        (20, ["changed_second"]),
+    ]
 
 
 def test_filters_non_python_and_generated_or_vendored_paths() -> None:
